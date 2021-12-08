@@ -19,7 +19,8 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.IOException;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+public class MainActivity extends AppCompatActivity implements View.OnClickListener,
+        MediaPlayer.OnCompletionListener{
 
     //declaración de variables/objetos
     private Button bAdelantar, bRebobinar, bParar;
@@ -59,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         //Instanciación de objeto Mediaplayer y cargado fichero para reproducción
         mp = new MediaPlayer().create(this, R.raw.thunderstruck);
+        mp.setOnCompletionListener(this);
 
         //Asignación de botones de la vista a variables del controlador
         bAdelantar = findViewById(R.id.butAdelantar);
@@ -74,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onResume(){
         super.onResume();
+        mp.setOnCompletionListener(this);
         mp.seekTo(position);
         if(bReproducir.getEstadoReproduccion()==true) {
             enableButton(true, true, true, true, false);
@@ -87,26 +90,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /*
-   Método que se ejecuta la pausarse la activity
+   Método que se ejecuta al pausarse la activity
    Pausa la reproducción
     */
     @Override
     protected void onPause(){
         super.onPause();
-        mp.pause();
-        position = mp.getCurrentPosition();
+        if(mp.isPlaying()){
+            mp.pause();
+            position = mp.getCurrentPosition();
+        }
     }
 
     /*
     Método que controla la disponibilidad de los botones del reproductor
      */
-    public void enableButton(boolean reprod, boolean rebob, boolean parar, boolean adelan, boolean grabar){
+    public void enableButton(
+            boolean reprod, boolean rebob, boolean parar, boolean adelan, boolean grabar){
         bReproducir.setEnabled(reprod);
         bRebobinar.setEnabled(rebob);
         bParar.setEnabled(parar);
         bAdelantar.setEnabled(adelan);
         bGrabar.setEnabled(grabar);
-
     }
 
     /*
@@ -119,7 +124,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             mr = new MediaRecorder();
             mr.setAudioSource(MediaRecorder.AudioSource.MIC);
             mr.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-            mr.setOutputFile(getFilesDir().getAbsolutePath()+ File.separator+"grabacion.mp3");
+            mr.setOutputFile(getFilesDir().getAbsolutePath()+ File.separator+"Grabacion.mp3");
             mr.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
             try{
                 mr.prepare();
@@ -134,7 +139,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             ActivityCompat.requestPermissions(this,permissions,1111);
         }
     }
-
     /*
     Método que gestiona el permiso de grabación en caso de que no estén concedidos todavía
     Si no se conceden, reestablece el reproductor al estado anterior al de grabar
@@ -150,13 +154,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
         }
         if (!permissionToRecordAccepted) {
-            Toast.makeText(this, "Permisos para grabar no concedidos", Toast.LENGTH_LONG).show();
+            Toast.makeText(
+                    this, "Permisos para grabar no concedidos", Toast.LENGTH_LONG).show();
             bGrabar.setGrabando(false);
             bGrabar.setText("Grabar");
-            mp.release();
-            mp = new MediaPlayer().create(this, R.raw.thunderstruck);
 
         } else {
+            Toast.makeText(
+                    this, "Permisos para grabar concedidos", Toast.LENGTH_LONG).show();
             empezarGrabacion();
         }
     }
@@ -178,12 +183,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void cargarGrabacion() {
         mp.reset();
         try {
-            mp.setDataSource(getFilesDir().getAbsolutePath() + File.separator + "grabacion.mp3");
+            mp.setDataSource(getFilesDir().getAbsolutePath() + File.separator + "Grabacion.mp3");
             mp.prepare();
         } catch (IOException ex){
-            Toast t = Toast.makeText(this,"No se pudo guardar la grabacion",Toast.LENGTH_LONG);
+            Toast t = Toast.makeText(
+                    this,"No se pudo guardar la grabacion",Toast.LENGTH_LONG);
         }
-        Toast t = Toast.makeText(this,"Grabación disponible para reproducir",Toast.LENGTH_LONG);
+        Toast t = Toast.makeText(
+                this,"Grabación disponible para reproducir",Toast.LENGTH_LONG);
         t.show();
     }
 
@@ -204,11 +211,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     /*
     Método que para la reproducción
      */
-    public void pararReproduccion() throws IOException {
+    public void pararReproduccion(){
         mp.stop();
         bReproducir.setReproduciendo(false);
         bReproducir.setTexto("Reproducir");
-        mp.prepare();
+        try {
+            mp.prepare();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         enableButton(true,false,false,false, true);
     }
 
@@ -239,13 +250,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 rebobinar();
                 break;
             case R.id.butParar:
-                try {
-                    pararReproduccion();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                pararReproduccion();
                 break;
         }
+    }
+
+    @Override
+    public void onCompletion(MediaPlayer mediaPlayer) {
+        pararReproduccion();
     }
 }
 
